@@ -1,0 +1,18 @@
+CREATE TABLE users (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(320) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    display_name VARCHAR(120) NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    authorization_version INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    CONSTRAINT uq_users_email UNIQUE (email)
+) ENGINE=InnoDB;
+
+CREATE TABLE user_roles (
+    user_id BIGINT NOT NULL,
+    role VARCHAR(32) NOT NULL,
+    PRIMARY KEY (user_id, role),
+    CONSTRAINT fk_user_roles_user FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB;

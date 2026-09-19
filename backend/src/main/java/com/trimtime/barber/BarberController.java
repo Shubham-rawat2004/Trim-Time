@@ -1,0 +1,11 @@
+package com.trimtime.barber;
+import jakarta.validation.Valid; import org.springframework.http.*; import org.springframework.security.access.prepost.PreAuthorize; import org.springframework.security.core.context.SecurityContextHolder; import org.springframework.web.bind.annotation.*; import java.util.*;
+@RestController @RequestMapping("/api") public class BarberController {
+ private final BarberService service; public BarberController(BarberService service){this.service=service;}
+ private Long current(){return ((com.trimtime.identity.SessionAuthenticationFilter.UserPrincipal)SecurityContextHolder.getContext().getAuthentication().getPrincipal()).id();}
+ @PostMapping("/barber/applications/{salonId}") public ResponseEntity<BarberDtos.RequestResponse> apply(@PathVariable Long salonId,@Valid @RequestBody BarberDtos.ApplyRequest request){return ResponseEntity.status(HttpStatus.CREATED).body(BarberDtos.RequestResponse.from(service.apply(current(),salonId,request)));}
+ @GetMapping("/barber/applications/mine") public List<BarberDtos.RequestResponse> mine(){return service.mine(current()).stream().map(BarberDtos.RequestResponse::from).toList();}
+ @PreAuthorize("hasRole('SALON_OWNER')") @GetMapping("/salons/mine/barber-applications") public List<BarberDtos.RequestResponse> ownerApplications(){return service.forOwner(current()).stream().map(BarberDtos.RequestResponse::from).toList();}
+ @PreAuthorize("hasRole('SALON_OWNER')") @PostMapping("/salons/mine/barber-applications/{requestId}/approve") public ResponseEntity<BarberDtos.MembershipResponse> approve(@PathVariable Long requestId){return ResponseEntity.status(HttpStatus.CREATED).body(BarberDtos.MembershipResponse.from(service.decide(current(),requestId,true)));}
+ @PreAuthorize("hasRole('SALON_OWNER')") @PostMapping("/salons/mine/barber-applications/{requestId}/reject") public ResponseEntity<Void> reject(@PathVariable Long requestId){service.decide(current(),requestId,false);return ResponseEntity.noContent().build();}
+}

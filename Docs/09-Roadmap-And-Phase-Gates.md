@@ -1,6 +1,6 @@
 # Trim-Time: Roadmap and Phase Gates
 
-Status: planning only. No phase is complete merely because these documents exist. This is an implementation sequence, not a time estimate.
+Status: implementation started. Phase 1 foundation, F01 identity/session access, the first F02 salon ownership slice, and F03 barber onboarding are implemented and verified in the local Docker stack. See the [foundation walkthrough](10-Foundation-Walkthrough.md), [identity walkthrough](11-Identity-Walkthrough.md), [salon ownership walkthrough](12-Salon-Ownership-Walkthrough.md), and [barber onboarding walkthrough](13-Barber-Onboarding-Walkthrough.md). This is an implementation sequence, not a time estimate.
 
 ## Phase 0: Resolve policies and prepare design
 
@@ -18,7 +18,7 @@ Gate: documented local commands start the stack, frontend reaches backend, backe
 
 ## Phase 2: Identity and permissions (F01, F12)
 
-Implement registration/login/logout, session security, current-user endpoint, multiple roles, and identity/membership schema. Add minimal salon setup here so approval workflows have a real owner and salon; phase 3 completes the rest of salon management. Implement barber profile, self-service application, owner approval/rejection, applicant withdrawal, and owner self-enrollment.
+Implement registration/login/logout, session security, current-user endpoint, multiple roles, and identity/membership schema. The first salon setup slice and barber self-service application, owner approval/rejection, profile capture, and membership creation are complete. Phase 3 completes the rest of salon management. Applicant withdrawal and owner self-enrollment remain follow-up work within this phase.
 
 Gate: role and ownership tests pass, arbitrary role escalation is rejected, logout invalidates the session, and stale membership cannot continue accessing protected data. Pending applicants have no salon access. Repeated/concurrent approval creates at most one active membership; one-pending-request and one-salon-per-owner limits survive concurrent requests.
 
