@@ -1,6 +1,6 @@
 # Trim-Time: MVP Scope
 
-Status: planning baseline; no application implementation exists yet.
+Status: agreed scope baseline. Foundation implementation has started; see [the milestone walkthrough](10-Foundation-Walkthrough.md) for actual completion and verification status. Business features are not implemented yet.
 
 ## Purpose
 
