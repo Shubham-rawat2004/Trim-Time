@@ -6,6 +6,7 @@ type Account = { id: number; email: string; displayName: string; roles: string[]
 type Salon = { id: number; ownerId: number; name: string; description: string; address: string; contact: string; timezone: string }
 type BarberApplication = { id: number; barberUserId: number; barberName: string; salonId: number; salonName: string; message: string; status: string; createdAt: string }
 type DirectorySalon = { id: number; name: string; description: string; address: string; contact: string; ownerName: string }
+type SalonService = { id: number; salonId: number; name: string; description: string; price: number; durationMinutes: number; active: boolean }
 export default function App() {
   const [connection, setConnection] = useState<Connection>('checking')
   const [attempt, setAttempt] = useState(0)
@@ -20,6 +21,10 @@ export default function App() {
   const [applications, setApplications] = useState<BarberApplication[]>([])
   const [ownerApplications, setOwnerApplications] = useState<BarberApplication[]>([])
   const [directorySalons, setDirectorySalons] = useState<DirectorySalon[]>([])
+  const [services, setServices] = useState<SalonService[]>([])
+  const [selectedSalonServices, setSelectedSalonServices] = useState<SalonService[]>([])
+  const [serviceError, setServiceError] = useState('')
+  const [serviceBusy, setServiceBusy] = useState(false)
   const [barberError, setBarberError] = useState('')
   const [barberBusy, setBarberBusy] = useState(false)
   useEffect(() => {
@@ -57,6 +62,8 @@ export default function App() {
       if (directory?.ok) setDirectorySalons(await directory.json() as DirectorySalon[])
       const pending = await fetch('/api/salons/mine/barber-applications')
       if (pending?.ok) setOwnerApplications(await pending.json() as BarberApplication[])
+      const catalogue = await fetch('/api/salons/mine/services')
+      if (catalogue?.ok) setServices(await catalogue.json() as SalonService[])
     } catch (error) { setAuthError(error instanceof Error ? error.message : 'Unable to complete the request.') }
     finally { setAuthBusy(false) }
   }
@@ -67,7 +74,7 @@ export default function App() {
       const csrf = await csrfResponse.json() as { token: string; headerName: string }
       await fetch('/api/auth/logout', { method: 'POST', headers: { [csrf.headerName]: csrf.token } })
     } finally {
-      setAccount(null); setSalon(null); setApplications([]); setOwnerApplications([]); setDirectorySalons([]); setAuthError(''); setBarberError('')
+      setAccount(null); setSalon(null); setApplications([]); setOwnerApplications([]); setDirectorySalons([]); setServices([]); setSelectedSalonServices([]); setAuthError(''); setBarberError('')
     }
   }
 
@@ -118,11 +125,15 @@ export default function App() {
         <div><p className={styles.eyebrow}>FEATURE 03 / 12</p><h2 id="barber-heading">Barber onboarding</h2><p>Barbers apply to join a salon. Owners review pending applications and approve or reject them.</p></div>
         <div className={styles.authForm}>
           <form onSubmit={async (event) => { event.preventDefault(); setBarberBusy(true); setBarberError(''); const form = new FormData(event.currentTarget); try { const csrfResponse = await fetch('/api/auth/csrf'); const csrf = await csrfResponse.json() as { token: string; headerName: string }; const response = await fetch(`/api/barber/applications/${String(form.get('salonId'))}`, { method: 'POST', headers: { 'Content-Type': 'application/json', [csrf.headerName]: csrf.token }, body: JSON.stringify({ message: String(form.get('message') ?? ''), bio: String(form.get('bio') ?? ''), experienceYears: Number(form.get('experienceYears') || 0) }) }); if (!response.ok) throw new Error(response.status === 409 ? 'You already have a pending request or salon membership.' : 'Unable to submit the application.'); setApplications([await response.json() as BarberApplication, ...applications]) } catch (error) { setBarberError(error instanceof Error ? error.message : 'Unable to submit the application.') } finally { setBarberBusy(false) } }}>
-            <label>Choose a salon<select name="salonId" required defaultValue=""><option value="" disabled>Select a salon</option>{directorySalons.map(item => <option key={item.id} value={item.id}>{item.name} — {item.address} · Owner: {item.ownerName}</option>)}</select></label><label>Experience (years)<input name="experienceYears" type="number" min="0" max="80" defaultValue="0" /></label><label>Short bio<input name="bio" maxLength={1000} /></label><label>Message to owner<input name="message" maxLength={1000} /></label>{directorySalons.length === 0 && <p>No active salons are available yet.</p>}{barberError && <p className={styles.error} role="alert">{barberError}</p>}<button className={styles.submit} disabled={barberBusy || directorySalons.length === 0}>{barberBusy ? 'Submitting...' : 'Apply to join salon'}</button>
+            <label>Choose a salon<select name="salonId" required defaultValue="" onChange={async (event) => { const salonId = event.currentTarget.value; setSelectedSalonServices([]); if (!salonId) return; const response = await fetch(`/api/salons/${salonId}/services`); if (response.ok) setSelectedSalonServices(await response.json() as SalonService[]) }}><option value="" disabled>Select a salon</option>{directorySalons.map(item => <option key={item.id} value={item.id}>{item.name} — {item.address} · Owner: {item.ownerName}</option>)}</select></label>{selectedSalonServices.length > 0 && <div className={styles.accountCard}><p className={styles.status}>Active services at this salon</p>{selectedSalonServices.map(item => <p key={item.id}><strong>{item.name}</strong> · ₹{item.price} · {item.durationMinutes} minutes</p>)}</div>}{selectedSalonServices.length === 0 && directorySalons.length > 0 && <p>Select a salon to view its active services.</p>}<label>Experience (years)<input name="experienceYears" type="number" min="0" max="80" defaultValue="0" /></label><label>Short bio<input name="bio" maxLength={1000} /></label><label>Message to owner<input name="message" maxLength={1000} /></label>{directorySalons.length === 0 && <p>No active salons are available yet.</p>}{barberError && <p className={styles.error} role="alert">{barberError}</p>}<button className={styles.submit} disabled={barberBusy || directorySalons.length === 0}>{barberBusy ? 'Submitting...' : 'Apply to join salon'}</button>
           </form>
           {applications.length > 0 && <div className={styles.accountCard}><p className={styles.status}>Your applications</p>{applications.map(application => <p key={application.id}>{application.salonName} · <strong>{application.status}</strong></p>)}</div>}
           {ownerApplications.length > 0 && <div className={styles.accountCard}><p className={styles.status}>Pending owner approvals</p>{ownerApplications.map(application => <p key={application.id}>{application.barberName} · {application.message || 'No message'} <button type="button" onClick={async () => { const csrfResponse = await fetch('/api/auth/csrf'); const csrf = await csrfResponse.json() as { token: string; headerName: string }; const response = await fetch(`/api/salons/mine/barber-applications/${application.id}/approve`, { method: 'POST', headers: { [csrf.headerName]: csrf.token } }); if (response.ok) setOwnerApplications(ownerApplications.filter(item => item.id !== application.id)) }}>Approve</button> <button type="button" onClick={async () => { const csrfResponse = await fetch('/api/auth/csrf'); const csrf = await csrfResponse.json() as { token: string; headerName: string }; const response = await fetch(`/api/salons/mine/barber-applications/${application.id}/reject`, { method: 'POST', headers: { [csrf.headerName]: csrf.token } }); if (response.ok) setOwnerApplications(ownerApplications.filter(item => item.id !== application.id)) }}>Reject</button></p>)}</div>}
         </div>
+      </section>}
+      {account?.roles.includes('SALON_OWNER') && salon && <section className={styles.authSection} aria-labelledby="services-heading">
+        <div><p className={styles.eyebrow}>FEATURE 04 / 12</p><h2 id="services-heading">Service catalogue</h2><p>Create the bookable services offered by {salon.name}. Each service records its price and estimated duration.</p></div>
+        <div className={styles.authForm}><form onSubmit={async (event) => { event.preventDefault(); setServiceBusy(true); setServiceError(''); const form = new FormData(event.currentTarget); try { const csrfResponse = await fetch('/api/auth/csrf'); const csrf = await csrfResponse.json() as { token: string; headerName: string }; const response = await fetch('/api/salons/mine/services', { method: 'POST', headers: { 'Content-Type': 'application/json', [csrf.headerName]: csrf.token }, body: JSON.stringify({ name: String(form.get('name')), description: String(form.get('description') ?? ''), price: Number(form.get('price')), durationMinutes: Number(form.get('durationMinutes')) }) }); if (!response.ok) throw new Error(response.status === 409 ? 'A service with this name already exists.' : 'Unable to create the service.'); setServices([...services, await response.json() as SalonService]); event.currentTarget.reset() } catch (error) { setServiceError(error instanceof Error ? error.message : 'Unable to create the service.') } finally { setServiceBusy(false) } }}><label>Service name<input name="name" required maxLength={160} /></label><label>Description<input name="description" maxLength={1000} /></label><label>Price<input name="price" type="number" min="0" step="0.01" required /></label><label>Duration (minutes)<input name="durationMinutes" type="number" min="5" max="480" required /></label>{serviceError && <p className={styles.error} role="alert">{serviceError}</p>}<button className={styles.submit} disabled={serviceBusy}>{serviceBusy ? 'Adding...' : 'Add service'}</button></form>{services.length > 0 && <div className={styles.accountCard}><p className={styles.status}>Your services</p>{services.map(item => <p key={item.id}><strong>{item.name}</strong> · ₹{item.price} · {item.durationMinutes} minutes {item.active ? '' : '(inactive)'} <button type="button" onClick={async () => { const csrfResponse = await fetch('/api/auth/csrf'); const csrf = await csrfResponse.json() as { token: string; headerName: string }; const response = await fetch(`/api/salons/mine/services/${item.id}`, { method: 'DELETE', headers: { [csrf.headerName]: csrf.token } }); if (response.ok) setServices(services.map(service => service.id === item.id ? { ...service, active: false } : service)) }}>Deactivate</button></p>)}</div>}</div>
       </section>}
       <footer>Trim-Time <span>Built with care. Developed step by step.</span></footer>
     </main>

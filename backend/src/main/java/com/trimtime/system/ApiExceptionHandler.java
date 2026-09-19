@@ -9,6 +9,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import com.trimtime.identity.AuthService;
 import com.trimtime.salon.SalonService;
 import com.trimtime.barber.BarberService;
+import com.trimtime.catalogue.CatalogueService;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -34,6 +35,10 @@ public class ApiExceptionHandler {
     ProblemDetail forbiddenDecision() { return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, "You can only decide applications for your own salon."); }
     @ExceptionHandler(BarberService.InvalidOnboardingException.class)
     ProblemDetail invalidOnboarding(BarberService.InvalidOnboardingException exception) { return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage()); }
+    @ExceptionHandler(CatalogueService.SalonMissingException.class)
+    ProblemDetail catalogueSalonNotFound() { return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "Salon not found."); }
+    @ExceptionHandler(CatalogueService.ServiceMissingException.class)
+    ProblemDetail serviceNotFound() { return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "Service not found for this salon."); }
     @ExceptionHandler(HttpMessageNotReadableException.class)
     ProblemDetail malformedRequest() { return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Request body is invalid."); }
     @ExceptionHandler(DataAccessException.class)
