@@ -24,13 +24,13 @@ Gate: role and ownership tests pass, arbitrary role escalation is rejected, logo
 
 ## Phase 3: Salon, catalogue, discovery (F02-F05)
 
-Build owner salon editing, validated photos, service/add-on catalogue, coordinates, radius discovery, and customer detail screens.
+Build owner salon editing, validated photos, service/add-on catalogue, coordinates, radius discovery, and customer detail screens. Coordinates and radius discovery are now implemented; validated photos and richer customer salon detail screens remain.
 
-Gate: only owners edit their salons; discovery works without device permission through manual selection; server totals account for compatible add-ons; photos persist across container replacement.
+Gate: only owners edit their salons; discovery works without device permission through manual selection; server totals account for compatible add-ons; photos persist across container replacement. The current discovery slice uses optional latitude/longitude and Haversine radius filtering.
 
 ## Phase 4: Availability and booking (F06-F08)
 
-Implement schedules, breaks, days off, qualifications, slot calculation, booking snapshots, MySQL locking, and request-key retry handling.
+Availability, barber service qualifications, salon-level slot calculation, and conflict-safe automatic barber assignment are implemented for approved barbers through week-specific hours, recurring weekly selections, full-day or custom-hours special dates, owner-managed service assignments, duration-aware sequential slots, appointment snapshots, and MySQL membership locking. Next implement breaks and request-key retry handling.
 
 Gate: real-MySQL tests cover overlap races, adjacent appointments, duration boundaries, different barbers, invalid qualifications, repeated requests, and concurrent schedule changes. A conflicting booking fails without partial records.
 

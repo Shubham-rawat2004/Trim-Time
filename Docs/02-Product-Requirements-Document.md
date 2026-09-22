@@ -34,8 +34,8 @@ This flow replaces the earlier owner-invitation proposal. No separate mobile app
 | F02 | Owners maintain salon details and valid images. | Another owner cannot edit the salon; invalid coordinates and files are rejected. |
 | F03 | Search from permitted device coordinates or a manually selected point. | Permission denial does not block manual selection; radius filtering uses straight-line distance. |
 | F04 | Owners maintain active services with positive duration and nonnegative price. | Customers see current offerings; deactivation does not change old bookings. |
-| F05 | Select only compatible add-ons supported by the selected barber. | Server recomputes total price and duration; forged client totals have no effect. |
-| F06 | Maintain eligible services, working intervals, breaks, and day-off exceptions. | Proposed schedule changes conflicting with future appointments are rejected. |
+| F05 | Select one or more active primary services and only compatible add-ons; the assigned barber must support every selected primary service. Add-ons inherit the qualification of their compatible primary service. | Server recomputes the combined total price and duration; forged client totals have no effect. |
+| F06 | Owners assign supported services to approved barbers; barbers maintain working intervals, breaks, and day-off exceptions. | A barber without the selected service qualification is excluded; proposed schedule changes conflicting with future appointments are rejected. |
 | F07 | Return future slots fitting salon hours, barber hours, breaks, and bookings. | A 45-minute appointment is not offered inside a 30-minute opening. |
 | F08 | Confirm availability again when booking. | Two simultaneous overlapping requests for one barber yield at most one success. |
 | F09 | Display an immutable booking reference and booked details. | Customer history includes only their records and preserves original prices. |

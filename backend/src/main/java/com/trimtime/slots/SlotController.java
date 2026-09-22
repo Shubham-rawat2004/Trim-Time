@@ -1,0 +1,3 @@
+package com.trimtime.slots;
+import org.springframework.web.bind.annotation.*; import java.time.*; import java.util.*;
+@RestController @RequestMapping("/api/slots") public class SlotController { private final SlotService service; public SlotController(SlotService service){this.service=service;} @GetMapping public List<SlotDtos.SlotResponse> find(@RequestParam Long salonId,@RequestParam(required=false) List<Long> serviceIds,@RequestParam(required=false) Long serviceId,@RequestParam(required=false) List<Long> addonIds,@RequestParam LocalDate date){var selected=serviceIds==null||serviceIds.isEmpty()?(serviceId==null?List.<Long>of():List.of(serviceId)):serviceIds;return service.find(salonId,selected,addonIds,date);} }
