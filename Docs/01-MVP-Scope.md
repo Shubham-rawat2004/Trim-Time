@@ -1,6 +1,6 @@
 # Trim-Time: MVP Scope
 
-Status: agreed scope baseline. Foundation implementation has started; see [the milestone walkthrough](10-Foundation-Walkthrough.md) for actual completion and verification status. Business features are not implemented yet.
+Status: agreed scope baseline. Foundation implementation is in progress; see the feature walkthroughs for actual completion and verification status.
 
 ## Purpose
 
@@ -17,7 +17,7 @@ The intended benefit is reduced waiting and clearer appointment information. App
 | F03 | Nearby discovery | Search within a radius such as 5 km using a selected location; straight-line distance. |
 | F04 | Service catalogue | Service name, description, price, and estimated duration. |
 | F05 | Add-on selection | Compatible extras contribute to both total price and sequential duration. |
-| F06 | Barber availability | Supported services, working hours, breaks, and days off. |
+| F06 | Barber availability | Owner-assigned supported services, working hours, breaks, and days off. |
 | F07 | Appointment slots | Slots derived from selected services and eligible barber availability. |
 | F08 | Conflict-safe booking | Server-side confirmation with MySQL transaction and locking protection. |
 | F09 | Confirmation and history | Reference, salon, barber, service snapshots, time, price, and status. |
@@ -54,7 +54,7 @@ Exact compatible dependency versions will be pinned during setup. No deployment 
 - One account can hold CUSTOMER, BARBER, and SALON_OWNER together. Normal registration grants CUSTOMER; additional roles come from controlled onboarding.
 - An owner may add themselves as a barber at their own salon without a join request, subject to the same single-active-membership rule.
 - An owner account owns at most one salon. Each salon has exactly one owner and can have many barbers.
-- This is salon membership approval, not independent professional-qualification verification. No email or document-verification service is required.
+- Salon membership approval and service qualification are separate steps. The owner decides which active salon services each approved barber can perform; this is operational configuration, not independent professional-qualification verification. No email or document-verification service is required.
 
 ## Proposed MVP simplifications
 

@@ -1,6 +1,6 @@
 # Trim-Time: Database Design
 
-Status: conceptual MySQL/InnoDB schema. Final SQL and entity mappings will be created during implementation through Flyway.
+Status: conceptual MySQL/InnoDB schema with the implemented mapping captured by Flyway migrations. The current runtime schema is version 12.
 
 ## Conventions
 
@@ -25,17 +25,17 @@ Status: conceptual MySQL/InnoDB schema. Final SQL and entity mappings will be cr
 | barbers | id, salon_id FK, profile_id FK, active, joined_at, ended_at; a salon membership, not the global profile |
 | services | id, salon_id FK, name, description, kind(BASE/ADD_ON), price, currency, duration_minutes, active |
 | service_addon_compatibility | base_service_id FK, addon_service_id FK; unique pair |
-| barber_services | barber_id FK, service_id FK; unique pair |
+| barber_services | barber_user_id FK, service_id FK; unique pair; owner-managed qualification assignment |
 | barber_working_intervals | id, barber_id FK, day_of_week, local_start, local_end |
 | barber_breaks | id, barber_id FK, day_of_week, local_start, local_end |
 | barber_day_offs | id, barber_id FK, local_date; unique barber/date |
 | cancellation_policy_versions | id, version UNIQUE, explicitly defined rule parameters, effective_from |
-| bookings | id, reference UNIQUE, customer_id FK, salon_id FK, barber_id FK, start_at, end_at, status, total_price, currency, policy_version_id FK, created_at, version |
+| bookings | id, reference UNIQUE, customer_id FK, salon_id FK, barber_id FK, start_at, end_at, status, selected service/add-on snapshot, total_price, currency, policy_version_id FK, created_at, version |
 | booking_items | id, booking_id FK, service_id FK, service_name_snapshot, kind_snapshot, price_snapshot, duration_minutes_snapshot |
 | booking_status_history | id, booking_id FK, from_status, to_status, actor_user_id FK, reason, occurred_at |
 | booking_requests | customer_id FK, request_key, payload_hash, booking_id FK; unique customer/request_key |
 
-The request-key table is a proposed reliability mechanism for safe booking retries, not a customer-facing feature. Multiple roles per account, owner-approved barber applications, and one salon per owner are finalized; exact schema implementation remains proposed.
+The request-key table is a proposed reliability mechanism for safe booking retries, not a customer-facing feature. Multiple roles per account, owner-approved barber applications, one salon per owner, and multi-service bookings with combined snapshots are finalized; request-key storage remains proposed.
 
 ## Integrity rules
 

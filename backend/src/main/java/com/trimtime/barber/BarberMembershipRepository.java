@@ -1,3 +1,3 @@
 package com.trimtime.barber;
-import org.springframework.data.jpa.repository.JpaRepository; import java.util.*;
-public interface BarberMembershipRepository extends JpaRepository<BarberMembership,Long> { boolean existsByBarberId(Long barberId); Optional<BarberMembership> findByBarberId(Long barberId); }
+import org.springframework.data.jpa.repository.*; import org.springframework.data.repository.query.Param; import jakarta.persistence.LockModeType; import java.util.*;
+public interface BarberMembershipRepository extends JpaRepository<BarberMembership,Long> { boolean existsByBarberId(Long barberId); Optional<BarberMembership> findByBarberId(Long barberId); List<BarberMembership> findBySalonId(Long salonId); @Lock(LockModeType.PESSIMISTIC_WRITE) @Query("select m from BarberMembership m where m.id=:id") Optional<BarberMembership> findByIdForUpdate(@Param("id") Long id); }
