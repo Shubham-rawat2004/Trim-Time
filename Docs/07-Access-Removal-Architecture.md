@@ -2,7 +2,7 @@
 
 The reference filename is retained. This document concerns application roles and salon/barber access, not repository collaborators or GitHub permissions.
 
-Status: security design supporting F12. No platform-admin dashboard or general account-deletion workflow is added to scope.
+Status: current-role session refresh, authorization-version tracking, inactive-account invalidation, and object-level owner/barber checks are implemented. Staff removal remains planned. No platform-admin dashboard or general account-deletion workflow is added to scope.
 
 ## Permission matrix
 
@@ -52,11 +52,11 @@ After deactivation, block new assignments and barber-specific access for that me
 
 ## Existing sessions after permission changes
 
-Do not rely only on roles copied into a session at login. Proposed mechanism: store an authorization version with the session, compare it against current account state on protected requests, and reject or refresh stale authorities after a role change. Also read current barber membership and salon ownership for object-specific access.
+The session stores both the user ID and current authorization version. Every protected request reloads the active account and its current roles from MySQL. When the version changes, the session marker and Spring Security authorities are refreshed before authorization. Missing or inactive accounts cause immediate session invalidation. Object-specific operations still read current barber membership and salon ownership.
 
 Sensitive mutations revalidate membership inside their transaction. Requests already completed before revocation remain completed; the system does not undo them.
 
-In-memory sessions are acceptable for one backend instance. Persistent or distributed sessions are outside the initial architecture.
+In-memory sessions are acceptable for one backend instance. A backend restart signs users out; persistent or distributed sessions are outside the initial architecture.
 
 ## Boundaries and unresolved workflows
 
@@ -67,6 +67,6 @@ In-memory sessions are acceptable for one backend instance. Persistent or distri
 
 ## Verification
 
-Test cross-owner profile edits, cross-barber booking access, customer access to another customer's booking, stale-session access after membership removal, role tampering during registration, and staff deactivation racing with a new booking.
+Automated coverage now verifies authentication-time session rotation, logout invalidation, same-session authority refresh after a role/version change, and immediate invalidation after account deactivation. Staff-removal tests remain required when that workflow is implemented.
 
 Also test pending-applicant access denial, wrong-owner approval, withdrawal versus approval, repeated approval, concurrent applications to different salons, owner self-enrollment, and concurrent attempts to create two salons for one owner.

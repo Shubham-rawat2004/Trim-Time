@@ -1,6 +1,6 @@
 # Trim-Time: Database Design
 
-Status: conceptual MySQL/InnoDB schema with the implemented mapping captured by Flyway migrations. The current runtime schema is version 12.
+Status: conceptual MySQL/InnoDB schema with the implemented mapping captured by Flyway migrations. The current runtime schema is version 19.
 
 ## Conventions
 
@@ -27,15 +27,14 @@ Status: conceptual MySQL/InnoDB schema with the implemented mapping captured by 
 | service_addon_compatibility | base_service_id FK, addon_service_id FK; unique pair |
 | barber_services | barber_user_id FK, service_id FK; unique pair; owner-managed qualification assignment |
 | barber_working_intervals | id, barber_id FK, day_of_week, local_start, local_end |
-| barber_breaks | id, barber_id FK, day_of_week, local_start, local_end |
+| barber_breaks | id, barber_user_id FK, week_start_date, day_of_week, start_time, end_time; exact interval unique |
 | barber_day_offs | id, barber_id FK, local_date; unique barber/date |
 | cancellation_policy_versions | id, version UNIQUE, explicitly defined rule parameters, effective_from |
-| bookings | id, reference UNIQUE, customer_id FK, salon_id FK, barber_id FK, start_at, end_at, status, selected service/add-on snapshot, total_price, currency, policy_version_id FK, created_at, version |
-| booking_items | id, booking_id FK, service_id FK, service_name_snapshot, kind_snapshot, price_snapshot, duration_minutes_snapshot |
+| bookings | id, reference UNIQUE, customer_id FK, salon_id FK, barber_id FK, request_key, request_fingerprint, local start/end, UTC start/end instants, salon timezone snapshot, status, selected service/add-on snapshot, total_price, currency, policy_version_id FK, created_at, version; UNIQUE(customer_id, request_key) |
+| appointment_items | id, appointment_id FK, item_kind, catalogue_item_id, name_snapshot, price_snapshot, duration_minutes_snapshot, display_order; immutable line items for new bookings |
 | booking_status_history | id, booking_id FK, from_status, to_status, actor_user_id FK, reason, occurred_at |
-| booking_requests | customer_id FK, request_key, payload_hash, booking_id FK; unique customer/request_key |
 
-The request-key table is a proposed reliability mechanism for safe booking retries, not a customer-facing feature. Multiple roles per account, owner-approved barber applications, one salon per owner, and multi-service bookings with combined snapshots are finalized; request-key storage remains proposed.
+V16 stores the successful request key and normalized payload fingerprint directly on the appointment. Legacy rows keep both columns null; MySQL permits multiple nulls while enforcing uniqueness for every new `(customer_user_id, request_key)` pair. Multiple roles per account, owner-approved barber applications, one salon per owner, and multi-service bookings with combined snapshots are finalized.
 
 ## Integrity rules
 
@@ -88,3 +87,15 @@ See [booking consistency](06-Sync-Engine-Design.md) for salon-wide edits, lock o
 - Do not use schema auto-update as the deployment migration mechanism.
 - Photo removal and database metadata changes need failure handling because filesystem writes do not share a database transaction.
 - Personal-data retention and account deletion policy remain open; deactivation is not equivalent to erasure.
+
+Implemented addition: V14 records required primary service IDs in `appointment_required_services`. See [booking consistency fix](22-Booking-Consistency-Fix.md) for the legacy-record policy.
+
+V15 enforces one pending barber application globally with a nullable generated applicant ID and unique constraint; see [application consistency](23-Barber-Application-Consistency-Fix.md).
+
+V16 adds customer-scoped booking request keys and payload fingerprints; see [booking retry safety](26-Booking-Retry-Safety-Fix.md).
+
+V17 adds week-specific barber breaks with time/day checks and an interval lookup index; see [barber breaks](27-Barber-Breaks-Fix.md).
+
+V18 adds nullable UTC start/end instants and a salon-timezone snapshot to appointments. New appointments populate all three fields. Legacy rows remain null because their local wall times cannot be converted safely after a salon timezone may have changed; see [salon-time consistency](28-Salon-Time-Consistency-Fix.md).
+
+V19 adds ordered structured appointment-item snapshots. New bookings persist one row per selected service and add-on; legacy comma-separated summaries remain unchanged because they cannot be parsed safely. See [appointment item snapshots](29-Appointment-Item-Snapshots-Fix.md).

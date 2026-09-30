@@ -2,7 +2,9 @@
 
 ## What this feature does
 
-Feature 1/12 now supports customer registration, login, logout infrastructure, and a current-user endpoint. Every newly registered account receives CUSTOMER. Passwords are stored as BCrypt hashes, never returned by the API, and the authenticated browser uses an HttpOnly session cookie. CSRF protection is enabled; the frontend obtains a CSRF token before state-changing authentication requests.
+Feature 1/12 now supports customer registration, login, logout, and a current-user endpoint. Every newly registered account receives CUSTOMER. Passwords are stored as BCrypt hashes, never returned by the API, and the authenticated browser uses an HttpOnly SameSite=Lax session cookie with a 30-minute idle timeout. CSRF protection is enabled; the frontend obtains a CSRF token before state-changing authentication requests.
+
+Registration and login rotate any existing session ID before attaching the account. Sessions store the account's authorization version, but roles are reloaded from MySQL on every protected request. Role changes refresh the session authorities immediately; inactive or deleted accounts invalidate the session.
 
 Role-based onboarding is next: salon creation grants SALON_OWNER, while barber self-registration creates a join request that the salon owner must approve. Those roles are not granted by client-submitted role names.
 
@@ -40,7 +42,10 @@ Open the running application at http://localhost:8088. In the Feature 01 card:
 - Modular monolith: identity is a backend module, not a separate service.
 - Session authentication is suitable for this same-origin browser app and keeps the frontend free from token storage.
 - Multiple roles remain a database relationship, so BARBER and SALON_OWNER can be added without duplicating accounts.
+- Successful role additions/removals increment `authorization_version`; session authorities are rebuilt from current database state.
 - The API returns DTOs rather than JPA entities and never exposes `password_hash`.
+
+See [session lifecycle](30-Session-Lifecycle-Fix.md) for security behavior and integration evidence.
 
 ## Next milestone
 

@@ -1,6 +1,6 @@
 # Trim-Time: Audit and Security Specification
 
-Status: planned safeguards for the agreed features. Audit records support debugging and accountability; they do not introduce an analytics or administrator product feature.
+Status: password hashing, normalized identities, generic login failures, authentication-time session rotation, logout/inactive-account invalidation, a 30-minute idle timeout, HttpOnly SameSite=Lax session cookies, CSRF protection, and current-role refresh are implemented. Login throttling, production HTTPS cookie settings, and the audit records below remain planned.
 
 ## Authentication
 
@@ -11,6 +11,8 @@ Status: planned safeguards for the agreed features. Audit records support debugg
 - Use HttpOnly cookies, Secure in HTTPS deployment, appropriate SameSite configuration, and CSRF protection.
 - Define idle session timeout during setup and document restart behavior.
 - Apply bounded login throttling appropriate to the deployment; mechanism is to be selected.
+
+The local HTTP profile deliberately leaves the session cookie's `Secure` flag off. A production HTTPS deployment must enable it. Sessions are held in backend memory and therefore end when the backend restarts.
 
 ## Authorization
 
@@ -65,4 +67,4 @@ Never log passwords, session cookies, CSRF tokens, full authentication headers, 
 
 Verify rejected unauthenticated writes, missing/invalid CSRF protection, cross-record access attempts, privileged-role injection, stale membership, invalid uploads, SQL-like input handling, and accidental sensitive fields in responses/logs. Test successful authorized flows too.
 
-No claim of completed security testing or production readiness is made by this document.
+Implemented session-lifecycle evidence is documented in [session lifecycle](30-Session-Lifecycle-Fix.md). The remaining required evidence and production controls must pass before any production-readiness claim.

@@ -34,6 +34,9 @@ public class UserAccount {
     public String getPasswordHash() { return passwordHash; }
     public String getDisplayName() { return displayName; }
     public boolean isActive() { return active; }
+    public int getAuthorizationVersion() { return authorizationVersion; }
     public Set<Role> getRoles() { return Collections.unmodifiableSet(roles); }
-    public void addRole(Role role) { roles.add(role); }
+    public void addRole(Role role) { if (roles.add(role)) authorizationVersion++; }
+    public void removeRole(Role role) { if (roles.remove(role)) authorizationVersion++; }
+    public void deactivate() { if (active) { active = false; authorizationVersion++; } }
 }
