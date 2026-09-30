@@ -22,13 +22,18 @@ public class SlotService {
     private final BarberServiceQualificationRepository qualifications;
     private final WorkingHourRepository hours;
     private final DayOffRepository days;
+    private final BarberBreakRepository breaks;
     private final AppointmentRepository appointments;
+    private final SalonTime salonTime;
 
     public SlotService(SalonRepository salons, ServiceOfferingRepository services, AddOnRepository addons,
                        BarberMembershipRepository memberships, BarberServiceQualificationRepository qualifications,
-                       WorkingHourRepository hours, DayOffRepository days, AppointmentRepository appointments) {
+                       WorkingHourRepository hours, DayOffRepository days, BarberBreakRepository breaks,
+                       AppointmentRepository appointments,
+                       SalonTime salonTime) {
         this.salons = salons; this.services = services; this.addons = addons; this.memberships = memberships;
-        this.qualifications = qualifications; this.hours = hours; this.days = days; this.appointments = appointments;
+        this.qualifications = qualifications; this.hours = hours; this.days = days; this.breaks = breaks; this.appointments = appointments;
+        this.salonTime = salonTime;
     }
 
     public Selection resolve(Long salonId, List<Long> requestedServiceIds, List<Long> addonIds) {
@@ -49,29 +54,56 @@ public class SlotService {
 
     @Transactional(readOnly = true)
     public List<SlotDtos.SlotResponse> find(Long salonId, List<Long> serviceIds, List<Long> addonIds, LocalDate date) {
-        if (date == null || date.isBefore(LocalDate.now())) throw new InvalidSlotRequestException();
+        if (date == null) throw new InvalidSlotRequestException();
         var selection = resolve(salonId, serviceIds, addonIds);
+        var now = nowFor(selection.salon());
+        if (date.isBefore(now.toLocalDate())) throw new InvalidSlotRequestException();
+        if (date.isAfter(now.toLocalDate().plusDays(selection.salon().getBookingHorizonDays()))) throw new BookingHorizonExceededException("Selected date exceeds the advance booking horizon of " + selection.salon().getBookingHorizonDays() + " days.");
         var result = new ArrayList<SlotDtos.SlotResponse>();
         for (var membership : memberships.findBySalonId(salonId)) {
             if (!qualifiedForAll(membership.getBarber().getId(), selection.services())) continue;
-            var interval = interval(membership.getBarber().getId(), date);
-            if (interval == null) continue;
-            for (var cursor = interval.start; !cursor.plusMinutes(selection.duration).isAfter(interval.end); cursor = cursor.plusMinutes(selection.duration)) {
-                var start = LocalDateTime.of(date, cursor); var end = start.plusMinutes(selection.duration);
-                if (appointments.findOverlapping(membership.getBarber().getId(), start, end, BLOCKING).isEmpty()) result.add(new SlotDtos.SlotResponse(date, cursor, cursor.plusMinutes(selection.duration), selection.duration, selection.price));
+            for (var interval : availableIntervals(membership.getBarber().getId(), date)) {
+                var intervalStart = LocalDateTime.of(date, interval.start);
+                var intervalEnd = LocalDateTime.of(date, interval.end);
+                if (!intervalEnd.isAfter(intervalStart)) continue;
+                int increment = selection.salon().getSlotIncrementMinutes() != null
+                        ? selection.salon().getSlotIncrementMinutes()
+                        : selection.duration;
+                for (var cursor = intervalStart; !cursor.plusMinutes(selection.duration).isAfter(intervalEnd); cursor = cursor.plusMinutes(increment)) {
+                    if (cursor.isBefore(now)) continue;
+                    var end = cursor.plusMinutes(selection.duration);
+                    if (!salonTime.isUnambiguous(selection.salon(), cursor)
+                            || !salonTime.isUnambiguous(selection.salon(), end)) continue;
+                    if (appointments.findOverlapping(membership.getBarber().getId(), cursor, end, BLOCKING).isEmpty()) result.add(new SlotDtos.SlotResponse(date, cursor.toLocalTime(), end.toLocalTime(), salonTime.instant(selection.salon(), cursor), salonTime.instant(selection.salon(), end), selection.salon().getTimezone(), selection.duration, selection.price));
+                }
             }
         }
         return result.stream().distinct().sorted(Comparator.comparing(SlotDtos.SlotResponse::startTime)).toList();
     }
 
-    public List<BarberMembership> eligible(Long salonId, List<Long> serviceIds, LocalDate date, LocalTime start, LocalTime end) {
+    public List<BarberMembership> eligible(Long salonId, List<Long> serviceIds, LocalDateTime start, LocalDateTime end) {
         var result = new ArrayList<BarberMembership>();
         for (var membership : memberships.findBySalonId(salonId)) {
             if (!qualifiedForAllIds(membership.getBarber().getId(), serviceIds)) continue;
-            var interval = interval(membership.getBarber().getId(), date);
-            if (interval != null && !start.isBefore(interval.start) && !end.isAfter(interval.end)) result.add(membership);
+            if (scheduleCovers(membership.getBarber().getId(), start, end)) result.add(membership);
         }
         return result;
+    }
+
+    public LocalDateTime nowFor(Salon salon) {
+        return salonTime.now(salon);
+    }
+
+    public boolean scheduleCovers(Long barberId, LocalDateTime start, LocalDateTime end) {
+        var working = interval(barberId, start.toLocalDate());
+        return working != null && start.toLocalDate().equals(end.toLocalDate())
+                && !start.toLocalTime().isBefore(working.start)
+                && !end.toLocalTime().isAfter(working.end)
+                && breaks.findByBarberIdAndWeekStartDateAndDayOfWeekOrderByStartTimeAsc(
+                        barberId, start.toLocalDate().with(DayOfWeek.MONDAY),
+                        start.toLocalDate().getDayOfWeek().getValue()).stream().noneMatch(item ->
+                        item.getStartTime().isBefore(end.toLocalTime())
+                                && item.getEndTime().isAfter(start.toLocalTime()));
     }
 
     public boolean free(Long barberId, LocalDateTime start, LocalDateTime end) { return appointments.findOverlappingForUpdate(barberId, start, end, BLOCKING).isEmpty(); }
@@ -83,9 +115,26 @@ public class SlotService {
         var regular = hours.findByBarberIdAndWeekStartDateAndDayOfWeek(barberId, date.with(DayOfWeek.MONDAY), date.getDayOfWeek().getValue());
         return regular.map(hour -> new Interval(hour.getStartTime(), hour.getEndTime())).orElse(null);
     }
+    private List<Interval> availableIntervals(Long barberId, LocalDate date) {
+        var working = interval(barberId, date);
+        if (working == null) return List.of();
+        var result = new ArrayList<Interval>();
+        var cursor = working.start;
+        for (var item : breaks.findByBarberIdAndWeekStartDateAndDayOfWeekOrderByStartTimeAsc(
+                barberId, date.with(DayOfWeek.MONDAY), date.getDayOfWeek().getValue())) {
+            if (!item.getEndTime().isAfter(working.start) || !item.getStartTime().isBefore(working.end)) continue;
+            var breakStart = item.getStartTime().isBefore(working.start) ? working.start : item.getStartTime();
+            var breakEnd = item.getEndTime().isAfter(working.end) ? working.end : item.getEndTime();
+            if (cursor.isBefore(breakStart)) result.add(new Interval(cursor, breakStart));
+            if (cursor.isBefore(breakEnd)) cursor = breakEnd;
+        }
+        if (cursor.isBefore(working.end)) result.add(new Interval(cursor, working.end));
+        return result;
+    }
     public record Selection(Salon salon, List<ServiceOffering> services, List<AddOn> addons, int duration, BigDecimal price, String serviceSummary, String addonSummary) {}
     private record Interval(LocalTime start, LocalTime end) {}
     public static class InvalidSlotRequestException extends RuntimeException {}
+    public static class BookingHorizonExceededException extends RuntimeException { public BookingHorizonExceededException(String message) { super(message); } }
     public static class InvalidSelectionException extends RuntimeException {}
     public static class SalonMissingException extends RuntimeException {}
     public static class ServiceMissingException extends RuntimeException {}

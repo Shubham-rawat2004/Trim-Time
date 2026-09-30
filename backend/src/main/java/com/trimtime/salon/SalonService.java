@@ -1,16 +1,23 @@
 package com.trimtime.salon;
-import com.trimtime.identity.*;
+import com.trimtime.appointment.AppointmentProtection; import com.trimtime.appointment.BookingWriteLock; import org.springframework.transaction.annotation.Isolation; import com.trimtime.identity.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.DateTimeException;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Comparator;
 @Service public class SalonService {
- private final SalonRepository salons; private final UserAccountRepository users;
- public SalonService(SalonRepository salons,UserAccountRepository users){this.salons=salons;this.users=users;}
- @Transactional public Salon create(Long ownerId,SalonDtos.SalonRequest request){validateCoordinates(request);var owner=users.findById(ownerId).orElseThrow();if(salons.existsByOwnerId(ownerId))throw new SalonAlreadyExistsException();owner.addRole(Role.SALON_OWNER);return salons.save(new Salon(owner,request.name().trim(),request.description(),request.address().trim(),request.contact().trim(),request.latitude(),request.longitude(),request.timezone().trim()));}
+ private final BookingWriteLock locks; private final AppointmentProtection protection; private final SalonRepository salons; private final UserAccountRepository users;
+ public SalonService(SalonRepository salons,UserAccountRepository users,BookingWriteLock locks,AppointmentProtection protection){this.locks=locks;this.protection=protection;this.salons=salons;this.users=users;}
+ @Transactional public Salon create(Long ownerId,SalonDtos.SalonRequest request){validateCoordinates(request);validateSettings(request.slotIncrementMinutes(),request.bookingHorizonDays());var owner=users.findById(ownerId).orElseThrow();if(salons.existsByOwnerId(ownerId))throw new SalonAlreadyExistsException();owner.addRole(Role.SALON_OWNER);return salons.save(new Salon(owner,request.name().trim(),request.description(),request.address().trim(),request.contact().trim(),request.latitude(),request.longitude(),request.timezone().trim(),request.slotIncrementMinutes(),request.bookingHorizonDays()));}
  @Transactional(readOnly=true) public Salon getOwned(Long ownerId){return salons.findByOwnerId(ownerId).orElseThrow(SalonNotFoundException::new);}
- @Transactional public Salon update(Long ownerId,SalonDtos.SalonRequest request){validateCoordinates(request);var salon=getOwned(ownerId);salon.update(request.name().trim(),request.description(),request.address().trim(),request.contact().trim(),request.latitude(),request.longitude(),request.timezone().trim());return salon;}
- private static void validateCoordinates(SalonDtos.SalonRequest request){if((request.latitude()==null)!=(request.longitude()==null))throw new InvalidCoordinatesException();}
+ @Transactional(isolation=Isolation.READ_COMMITTED) public Salon update(Long ownerId,SalonDtos.SalonRequest request){locks.owner(ownerId);validateCoordinates(request);validateSettings(request.slotIncrementMinutes(),request.bookingHorizonDays());var salon=getOwned(ownerId);var timezone=request.timezone().trim();protection.timezoneChange(salon,timezone);salon.update(request.name().trim(),request.description(),request.address().trim(),request.contact().trim(),request.latitude(),request.longitude(),timezone,request.slotIncrementMinutes(),request.bookingHorizonDays());return salon;}
+ private static void validateSettings(Integer slotIncrementMinutes, Integer bookingHorizonDays){
+  if(slotIncrementMinutes != null && slotIncrementMinutes != 15 && slotIncrementMinutes != 30) throw new InvalidSlotIncrementException("Slot increment must be 15 or 30 minutes.");
+  if(bookingHorizonDays != null && (bookingHorizonDays < 1 || bookingHorizonDays > 365)) throw new InvalidBookingHorizonException("Booking horizon must be between 1 and 365 days.");
+ }
+ private static void validateCoordinates(SalonDtos.SalonRequest request){if((request.latitude()==null)!=(request.longitude()==null))throw new InvalidCoordinatesException();validateTimezone(request.timezone());}
+ private static void validateTimezone(String timezone){try{if(timezone==null||timezone.isBlank())throw new DateTimeException("blank timezone");ZoneId.of(timezone.trim());}catch(DateTimeException exception){throw new InvalidTimezoneException();}}
  @Transactional(readOnly=true) public List<SalonDtos.DirectoryResponse> directory(Double latitude,Double longitude,Double radiusKm){
   if ((latitude == null) != (longitude == null)) throw new InvalidDiscoveryRequestException("Latitude and longitude must be provided together.");
   if (latitude != null && (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180)) throw new InvalidDiscoveryRequestException("Latitude or longitude is outside its valid range.");
@@ -36,5 +43,8 @@ import java.util.Comparator;
  private record SalonDistance(Salon salon,Double distanceKm){}
  public static class SalonAlreadyExistsException extends RuntimeException{} public static class SalonNotFoundException extends RuntimeException{}
  public static class InvalidCoordinatesException extends RuntimeException{}
+ public static class InvalidTimezoneException extends RuntimeException{}
+ public static class InvalidSlotIncrementException extends RuntimeException{public InvalidSlotIncrementException(String message){super(message);}}
+ public static class InvalidBookingHorizonException extends RuntimeException{public InvalidBookingHorizonException(String message){super(message);}}
  public static class InvalidDiscoveryRequestException extends RuntimeException{public InvalidDiscoveryRequestException(String message){super(message);}}
 }

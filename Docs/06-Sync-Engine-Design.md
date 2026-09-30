@@ -2,7 +2,7 @@
 
 The filename follows the reference screenshot. There is no external synchronization engine in this project. This document defines how availability, booking writes, schedule edits, and frontend refreshes remain consistent.
 
-Status: proposed implementation protocol requiring integration tests against MySQL.
+Status: the shared salon-first lock, READ COMMITTED writes, schedule/qualification/break conflict protection, booking request keys, salon-time conversion, and structured booking-item snapshots are implemented with MySQL integration tests. See [booking consistency](22-Booking-Consistency-Fix.md), [booking retry safety](26-Booking-Retry-Safety-Fix.md), [barber breaks](27-Barber-Breaks-Fix.md), [salon-time consistency](28-Salon-Time-Consistency-Fix.md), and [appointment item snapshots](29-Appointment-Item-Snapshots-Fix.md). Status history, cancellation, and staff removal below remain planned.
 
 ## Finalized onboarding consistency requirements
 
@@ -24,9 +24,10 @@ MySQL is authoritative. A slot shown in React is a candidate, not a reservation.
 4. Subtract breaks, days off, and blocking appointments.
 5. Generate starts using the agreed slot-start increment.
 6. Keep only intervals fitting the full combined duration and future-booking rules.
-7. Return explicit instants, display zone, duration, and server-derived price information.
+7. Convert each local boundary through the salon's IANA timezone. Skip a candidate when either boundary has zero or multiple valid offsets, so daylight-saving gaps and overlaps are never resolved arbitrarily.
+8. Return explicit UTC instants, display zone, local wall time, duration, and server-derived price information.
 
-Slot increment and advance-booking limits remain open. Handle ambiguous or nonexistent daylight-saving local times explicitly; never silently assign an arbitrary offset.
+Slot increment and advance-booking limits remain open.
 
 ## MySQL locking protocol
 
@@ -49,7 +50,7 @@ Every writer of salon availability or booked service inputs must follow the same
 - Re-read active salon/barber, qualifications, selected services, price, duration, schedule, and policy.
 - Test overlap: existing.start < requested.end AND existing.end > requested.start.
 - Proposed rule: all non-cancelled bookings retain their occupied interval; only future candidate slots are offered.
-- Insert booking, immutable item snapshots, initial history event, and successful request-key record atomically.
+- Insert the booking, local wall times, UTC instants, salon-timezone snapshot, ordered service/add-on item snapshots, required service IDs, and successful request-key metadata atomically. The initial status-history event remains Phase 5 work.
 - Return confirmation after commit. On conflict, return 409 and fresh-availability guidance.
 
 If a request commits but its response is lost, retrying with the same key returns the same booking. The same-key check is performed inside the serialized transaction and backed by a unique constraint.

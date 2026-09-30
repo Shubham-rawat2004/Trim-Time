@@ -18,13 +18,13 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<AuthDtos.UserResponse> register(@Valid @RequestBody AuthDtos.RegisterRequest request, HttpServletRequest servletRequest) {
         var user = auth.register(request);
-        servletRequest.getSession(true).setAttribute(SessionAuthenticationFilter.USER_ID, user.getId());
+        establishSession(servletRequest, user);
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(user));
     }
     @PostMapping("/login")
     public AuthDtos.UserResponse login(@Valid @RequestBody AuthDtos.LoginRequest request, HttpServletRequest servletRequest) {
         var user = auth.authenticate(request);
-        servletRequest.getSession(true).setAttribute(SessionAuthenticationFilter.USER_ID, user.getId());
+        establishSession(servletRequest, user);
         return toResponse(user);
     }
     @GetMapping("/me")
@@ -37,6 +37,13 @@ public class AuthController {
     public ResponseEntity<Void> logout(HttpServletRequest request) {
         var session = request.getSession(false); if (session != null) session.invalidate();
         SecurityContextHolder.clearContext(); return ResponseEntity.noContent().build();
+    }
+    private void establishSession(HttpServletRequest request, UserAccount user) {
+        var session = request.getSession(false);
+        if (session == null) session = request.getSession(true);
+        else request.changeSessionId();
+        session.setAttribute(SessionAuthenticationFilter.USER_ID, user.getId());
+        session.setAttribute(SessionAuthenticationFilter.AUTHORIZATION_VERSION, user.getAuthorizationVersion());
     }
     private AuthDtos.UserResponse toResponse(UserAccount user) { return new AuthDtos.UserResponse(user.getId(), user.getEmail(), user.getDisplayName(), user.getRoles()); }
 }

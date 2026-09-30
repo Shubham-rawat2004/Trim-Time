@@ -18,7 +18,7 @@ Gate: documented local commands start the stack, frontend reaches backend, backe
 
 ## Phase 2: Identity and permissions (F01, F12)
 
-Implement registration/login/logout, session security, current-user endpoint, multiple roles, and identity/membership schema. The first salon setup slice and barber self-service application, owner approval/rejection, profile capture, and membership creation are complete. Phase 3 completes the rest of salon management. Applicant withdrawal and owner self-enrollment remain follow-up work within this phase.
+Registration/login/logout, session-ID rotation, authorization-version refresh, inactive-account invalidation, current-user access, multiple roles, and the identity/membership schema are implemented. The first salon setup slice and barber self-service application, owner approval/rejection, profile capture, and membership creation are complete. Phase 3 completes the rest of salon management. Applicant withdrawal and owner self-enrollment remain follow-up work within this phase.
 
 Gate: role and ownership tests pass, arbitrary role escalation is rejected, logout invalidates the session, and stale membership cannot continue accessing protected data. Pending applicants have no salon access. Repeated/concurrent approval creates at most one active membership; one-pending-request and one-salon-per-owner limits survive concurrent requests.
 
@@ -30,7 +30,7 @@ Gate: only owners edit their salons; discovery works without device permission t
 
 ## Phase 4: Availability and booking (F06-F08)
 
-Availability, barber service qualifications, salon-level slot calculation, and conflict-safe automatic barber assignment are implemented for approved barbers through week-specific hours, recurring weekly selections, full-day or custom-hours special dates, owner-managed service assignments, duration-aware sequential slots, appointment snapshots, and MySQL membership locking. Next implement breaks and request-key retry handling.
+Availability, barber service qualifications, salon-level slot calculation, conflict-safe automatic barber assignment, and safe booking retries are implemented for approved barbers through week-specific hours and breaks, recurring weekly selections, full-day or custom-hours special dates, owner-managed service assignments, duration-aware sequential slots, structured immutable appointment-item snapshots, UTC appointment instants with salon-timezone snapshots, explicit daylight-saving ambiguity rejection, MySQL membership locking, and customer-scoped request keys. Slot-start increment and advance-booking limits remain open product rules.
 
 Gate: real-MySQL tests cover overlap races, adjacent appointments, duration boundaries, different barbers, invalid qualifications, repeated requests, and concurrent schedule changes. A conflicting booking fails without partial records.
 

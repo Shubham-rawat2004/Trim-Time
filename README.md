@@ -8,6 +8,24 @@ Foundation, identity, salon ownership/profile editing, salon directory selection
 
 See the [foundation walkthrough](Docs/10-Foundation-Walkthrough.md), [identity walkthrough](Docs/11-Identity-Walkthrough.md), [salon ownership walkthrough](Docs/12-Salon-Ownership-Walkthrough.md), [barber onboarding walkthrough](Docs/13-Barber-Onboarding-Walkthrough.md), [salon profile editing walkthrough](Docs/14-Salon-Profile-Editing-Walkthrough.md), [salon directory walkthrough](Docs/15-Salon-Directory-And-Selection-Walkthrough.md), [service catalogue walkthrough](Docs/16-Service-Catalogue-Walkthrough.md), [add-on walkthrough](Docs/17-Add-On-Selection-Walkthrough.md), [barber availability walkthrough](Docs/18-Barber-Availability-Walkthrough.md), [appointment slots walkthrough](Docs/19-Appointment-Slots-Walkthrough.md), [booking and auto-assignment walkthrough](Docs/20-Booking-And-Auto-Assignment-Walkthrough.md), and [barber qualifications walkthrough](Docs/21-Barber-Service-Qualifications-Walkthrough.md) for what each component does and how to test it. The [scope document](Docs/01-MVP-Scope.md) defines the agreed 12 features.
 
+The [booking consistency fix](Docs/22-Booking-Consistency-Fix.md) adds shared salon locking and rejects schedule/qualification edits that invalidate existing appointments. V14 records required service IDs for new appointments; legacy appointments use conservative qualification-removal protection.
+
+The [application consistency fix](Docs/23-Barber-Application-Consistency-Fix.md) enforces one pending barber application across salons with applicant locking and the V15 database constraint.
+
+The [weekly availability replacement fix](Docs/24-Weekly-Availability-Replacement-Fix.md) makes weekly hours a complete replacement: unchecked weekdays are removed, related special-date overrides are cleaned up, and conflicts roll back the whole schedule save.
+
+The [slot time handling fix](Docs/25-Slot-Time-Handling-Fix.md) makes slot search and booking use salon-local “today” and “now”, rejects past same-day starts, validates salon timezones, and prevents duration arithmetic from wrapping past midnight.
+
+The [booking retry safety fix](Docs/26-Booking-Retry-Safety-Fix.md) makes appointment confirmation idempotent: a lost response can be retried with the same browser-generated key without creating another booking, while changed-payload key reuse is rejected.
+
+The [barber breaks fix](Docs/27-Barber-Breaks-Fix.md) adds week-specific break management, removes overlapping customer slots, revalidates breaks during booking, and protects existing appointments from conflicting break edits.
+
+The [salon-time consistency fix](Docs/28-Salon-Time-Consistency-Fix.md) applies the salon timezone to availability and appointment protection, exposes unambiguous UTC instants on slots and new appointments, and rejects daylight-saving gap or overlap times instead of choosing an offset silently.
+
+The [appointment item snapshot fix](Docs/29-Appointment-Item-Snapshots-Fix.md) records ordered immutable service and add-on line items for new bookings and exposes their individual names, prices, and durations in customer history.
+
+The [session lifecycle fix](Docs/30-Session-Lifecycle-Fix.md) rotates session IDs at authentication, tracks authorization versions, refreshes current database roles on every protected request, and invalidates sessions for inactive or missing accounts.
+
 ## Requirements
 
 - Java 21+ (target is Java 21; local compile verified with installed JDK 23).

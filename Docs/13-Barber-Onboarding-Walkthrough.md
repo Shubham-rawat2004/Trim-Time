@@ -6,7 +6,7 @@ Status: Feature 03 implemented.
 
 A signed-in user can apply to join a salon by salon ID. The application stores a barber profile, optional experience details, and a message. It starts as `PENDING`.
 
-The salon owner can view pending applications for the owner's salon and approve or reject them. Approval creates one barber membership and adds the `BARBER` role while preserving existing roles such as `CUSTOMER`. The service prevents duplicate pending applications and prevents a barber from belonging to more than one salon.
+The salon owner can view pending applications for the owner's salon and approve or reject them. Approval creates one barber membership and adds the `BARBER` role while preserving existing roles such as `CUSTOMER`. The service prevents more than one pending application across all salons and prevents a barber from belonging to more than one salon.
 
 ## Endpoints
 
@@ -29,3 +29,5 @@ All state-changing requests require the session CSRF token returned by `GET /api
 7. Submit the same application again or apply after approval and confirm the conflict response explains the membership rule.
 
 The current directory is a selection prerequisite. Radius-based nearby discovery remains a later feature.
+
+See [application consistency fix](23-Barber-Application-Consistency-Fix.md) for transactional locking, the V15 database constraint, and concurrent-request tests.
